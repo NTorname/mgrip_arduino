@@ -23,7 +23,7 @@ Displays on built in LED on arduino
    
    3 = gripper pressure too high
 
-<h3>Installing</h3>
+<h2>Installing</h2>
 
 gripper_control.ino must be installed on the arduino
 

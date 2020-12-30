@@ -4,6 +4,8 @@
  arudino subscribes to /pneu_gripper and safely sets gripper 
    to state sent in message
  
+ Note: the control board is asserted 0v
+ 
  GRIP  = 0 CLOSED
        = 1 NEUTRAL
        = 2 OPEN
@@ -56,9 +58,9 @@ void updateGripper(const mgrip_controller::pneu_gripper& gripper_msg){  //callba
 
 
 void isError(int code){  //error reporting I guess
-  digitalWrite(pin1, HIGH);
-  digitalWrite(pin2, HIGH);
-  digitalWrite(pin3, LOW);
+  digitalWrite(pin1, LOW);
+  digitalWrite(pin2, LOW);
+  digitalWrite(pin3, HIGH);
   
   while(1){
     for(byte i = 0; i < code; i++){
@@ -84,32 +86,32 @@ int getPSI(){ //returns pressure in gripper in 1/10ths of PSI
 //TODO merge open and close grip into one assertGrip function
 void openGrip(int p){  //open gripper
   while(getPSI() > p){
-    digitalWrite(pin1, HIGH);
-    digitalWrite(pin3, HIGH);
+    digitalWrite(pin1, LOW);
+    digitalWrite(pin3, LOW);
   }
-  digitalWrite(pin1, LOW);
-  digitalWrite(pin3, LOW);
+  digitalWrite(pin1, HIGH);
+  digitalWrite(pin3, HIGH);
 }
 
 
 void closeGrip(int p){  //close gripper
   while(getPSI() < p){
-    digitalWrite(pin2, HIGH);
-    digitalWrite(pin3, HIGH);
+    digitalWrite(pin2, LOW);
+    digitalWrite(pin3, LOW);
   }
-  digitalWrite(pin2, LOW);
-  digitalWrite(pin3, LOW);
+  digitalWrite(pin2, HIGH);
+  digitalWrite(pin3, HIGH);
 }
 
 
 void relaxGrip(){  //return to neutral grip
   while(abs(getPSI()) > 2){  //TODO test if we can lower this pressure margin
-    digitalWrite(pin1, HIGH);
-    digitalWrite(pin2, HIGH);
-    digitalWrite(pin3, LOW);
+    digitalWrite(pin1, LOW);
+    digitalWrite(pin2, LOW);
+    digitalWrite(pin3, HIGH);
   }
-  digitalWrite(pin1, LOW);
-  digitalWrite(pin2, LOW);
+  digitalWrite(pin1, HIGH);
+  digitalWrite(pin2, HIGH);
 }
 
  
@@ -124,6 +126,10 @@ void setup(){  //set up all sorts of arduino things
   pinMode(vRef, INPUT);
   pinMode(gripPress, INPUT);
   pinMode(LED_BUILTIN, OUTPUT);
+ 
+  digitalWrite(pin1, HIGH);
+  digitalWrite(pin2, HIGH);
+  digitalWrite(pin3, HIGH);
   
   nh.initNode();
   nh.subscribe(sub);

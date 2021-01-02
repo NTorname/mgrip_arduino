@@ -27,4 +27,4 @@ Displays on built in LED on arduino
 
 gripper_control.ino must be installed on the arduino
 
-pneu_gripper.h must be installed in [arduino location]/libraries/ros_lib
+pneu_gripper.h must be installed in `[arduino location]/libraries/ros_lib`

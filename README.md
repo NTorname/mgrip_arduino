@@ -1,6 +1,6 @@
 <h1>mGrip Arduino Controller</h1>
 
-Using an arduino and some external relays, ROS is able to send messages to a custom controller for a Soft Robotics gripper.
+Using an arduino and a custom driver board, ROS is able to send messages to a custom controller for a Soft Robotics gripper.
 
 
 <h2>Message Explained</h2>

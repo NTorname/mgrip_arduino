@@ -1,149 +1,158 @@
 /*
- Gripper Controller
- Code by Noah
- arudino subscribes to /pneu_gripper and safely sets gripper 
-   to state sent in message
- 
- Note: the control board is asserted 0v
- 
- GRIP  = 0 CLOSED
-       = 1 NEUTRAL
-       = 2 OPEN
-       
- error blink codes
-    1 = message pressure limits outside of acceptable range
-    2 = grip request out of range
-    3 = gripper pressure too high
+   Co-Drive Hardware Driver
+   Controls pneumatic system for Co-Drive
+   ROS publisher on system should be /codrive_driver
+   State init to 3, flip to 4 to engage +24V power
+   Then use state 0-2 as desired to control gripper
 */
 
 #include <ros.h>
-#include <mgrip_controller/pneu_gripper.h>
+#include <std_msgs/UInt8.h>
+//States
+#define GRIP_NEUTRAL 0
+#define GRIP_CLOSE 1
+#define GRIP_OPEN 2
+#define FLIP_OFF 3
+#define FLIP_ON 4
+//Control Lines
+//Close gripper solenoid
+#define OUT_A B00000100
+//Open gripper solenoid
+#define OUT_B B00001000
+//Turns air pump on 
+#define OUT_C B00010000
+//Vref
+#define VREF A0
+//Co-Drive PSI
+#define PSI A1
+//Presure Limits in 0.1 PSI
+#define MAX 100
+#define MIN -50
+//Port B bitmask - Used for relay control
+#define MASK B00011111
 
+//====================================================================================================================================================================
+byte state = 3; //default to relay off
 
-//user config stuff happens in this block
-const int pin1 = A0;  //close gripper solenoid
-const int pin2 = A1;  //open gripper solenoid
-const int pin3 = A2;  //turns air pump on
-const int gripPress = A3;  //read gripper pressure output
-const int vRef = A4;  //connect to 3.3v source on arduino
-const int maxP = 100;  //maximum allowable gripper pressure in 1/10ths of PSI (recommend 100)
-const int minP = -50;  //minimum allowable gripper pressure in 1/10ths of PSI (recommend -50)
-
-
-int prevState = -1;
-
-
-void updateGripper(const mgrip_controller::pneu_gripper& gripper_msg){  //callback for when new gripper message received
-  if((gripper_msg.minPres < minP) || (gripper_msg.maxPres > maxP)){
-    isError(1);
-  }
-  
-  if(gripper_msg.grip == prevState){  //TODO is this assuming too much? should rely on pressure reading?
-    return;
-  }
-  prevState = gripper_msg.grip;
-  
-  if(gripper_msg.grip == 0){
-    relaxGrip();
-    openGrip(gripper_msg.minPres);
-  }else if(gripper_msg.grip == 1){
-    relaxGrip();
-  }else if(gripper_msg.grip == 2){
-    relaxGrip();
-    closeGrip(gripper_msg.maxPres);
-  }else{
-    isError(2);
-  } 
-}
-
-
-void isError(int code){  //error reporting I guess
-  digitalWrite(pin1, LOW);
-  digitalWrite(pin2, LOW);
-  digitalWrite(pin3, HIGH);
-  
-  while(1){
-    for(byte i = 0; i < code; i++){
-      digitalWrite(LED_BUILTIN, HIGH);
-      delay(100);
-      digitalWrite(LED_BUILTIN, LOW);
-      delay(100);
-    }
-    delay(1500);
-  }
-}
-
-
-int getPSI(){ //returns pressure in gripper in 1/10ths of PSI
-  float comp = 3.3 / analogRead(vRef);
-  return (int)((7.288016*analogRead(gripPress)*comp - 21.65923)*10);
-  //PSI = a(voltage) + b
-  //a = 7.288016
-  //b = -21.65923
-}
-
-
-//TODO merge open and close grip into one assertGrip function
-void openGrip(int p){  //open gripper
-  while(getPSI() > p){
-    digitalWrite(pin1, LOW);
-    digitalWrite(pin3, LOW);
-  }
-  digitalWrite(pin1, HIGH);
-  digitalWrite(pin3, HIGH);
-}
-
-
-void closeGrip(int p){  //close gripper
-  while(getPSI() < p){
-    digitalWrite(pin2, LOW);
-    digitalWrite(pin3, LOW);
-  }
-  digitalWrite(pin2, HIGH);
-  digitalWrite(pin3, HIGH);
-}
-
-
-void relaxGrip(){  //return to neutral grip
-  while(abs(getPSI()) > 2){  //TODO test if we can lower this pressure margin
-    digitalWrite(pin1, LOW);
-    digitalWrite(pin2, LOW);
-    digitalWrite(pin3, HIGH);
-  }
-  digitalWrite(pin1, HIGH);
-  digitalWrite(pin2, HIGH);
-}
-
- 
+//ROS Arduino reference: http://wiki.ros.org/rosserial_arduino/
 ros::NodeHandle nh;
-ros::Subscriber<mgrip_controller::pneu_gripper> sub("/pneu_gripper", &updateGripper); //set up ros and listen to /pneu_gripper topic
+void msgCb (const std_msgs::UInt8& msg) {
+  state = msg.data;
+}
 
+ros::Subscriber<std_msgs::UInt8> sub("codrive_driver", &msgCb);
 
-void setup(){  //set up all sorts of arduino things
-  pinMode(pin1, OUTPUT);
-  pinMode(pin2, OUTPUT);
-  pinMode(pin3, OUTPUT);
-  pinMode(vRef, INPUT);
-  pinMode(gripPress, INPUT);
-  pinMode(LED_BUILTIN, OUTPUT);
- 
-  digitalWrite(pin1, HIGH);
-  digitalWrite(pin2, HIGH);
-  digitalWrite(pin3, HIGH);
-  
+byte getPSI () {
+  float comp = 3.3 / analogRead(VREF);
+  return (byte) (7.288016 * analogRead(PSI) * comp - 21.65923);
+}
+
+//TODO: NEED TO CHECK IF ALL THESE FUNCTIONS ARE LOGICAL FOR THE ACTUAL SYSTEM - ASK NOAH & SASHA
+//======================================================================================================
+
+void relaxGrip() {
+  #digitalWrite(OUT_A, HIGH);
+  #digitalWrite(OUT_B, HIGH);
+  #digitalWrite(OUT_C, LOW);
+  PORTD = OUT_A | OUT_B;
+  delay(2000);
+  #digitalWrite(OUT_A, LOW);
+  #digitalWrite(OUT_B, LOW);
+  PORTD = B00000000;
+}
+
+void closeGrip() {
+  while (getPSI() < MAX) {
+    /*int i = 0;
+      while(i < 30) {  //debug purposes only
+      i++;*/
+    #digitalWrite(OUT_B, HIGH);
+    #digitalWrite(OUT_C, HIGH);
+    PORTD = OUT_B | OUT_C;
+  }
+  #digitalWrite(OUT_B, LOW);
+  #digitalWrite(OUT_C, LOW);
+  PORTD = B00000000;
+}
+
+void openGrip() {
+  while (getPSI() > MIN) {
+    /*int j = 0;
+      while(j < 30){  //debug purposes only
+      j++;*/
+    #digitalWrite(OUT_A, HIGH);
+    #digitalWrite(OUT_C, HIGH);
+    PORTD = OUT_A | OUT_C;
+  }
+}
+
+void relayOn() {
+  // This code utilizes a bitmask to flip pins #-# at the same exact time to ensure that they are not creating any shorts.
+  // This provides the neccassary 80 mA +/- 10% to properly drive the onboard relay.
+  PORTB = PORTB | MASK;
+}
+
+void relayOff() {
+  // This code utilizes a bitmask to flip pins #-# at the same exact time to ensure that they are not creating any shorts.
+  // This provides the neccassary 80 mA +/- 10% to properly drive the onboard relay.
+  PORTB = PORTB & (~MASK);
+}
+
+void setup() {
+  //+24V Digital Line Control via FETs
+  pinMode(OUT_A, OUTPUT);
+  pinMode(OUT_B, OUTPUT);
+  pinMode(OUT_C, OUTPUT);
+  //Pin 5 High Impedance - This ensures the output bank will function properly
+  pinMode(5, INPUT);
+  //The reason for this was due to a phsyical error in the boards design related
+  //To how much current digital pins are capable of sourcing.
+  //Do not alter this unless the physical issue has been repaired or you are
+  //Implementing an alternate fix
+
+  //Output Bank Pins - Used to provide 100 mA to the relay.
+  pinMode(8, OUTPUT);
+  pinMode(9, OUTPUT);
+  pinMode(10, OUTPUT);
+  pinMode(11, OUTPUT);
+  pinMode(12, OUTPUT);
+  //This requires pin 8-12 to be jumped to pin 5, and for
+  //Pin 5 to be high impedence (ie: input). The other option
+  //is to cut the pin 5 trace and attach to pin 5 of K1 relay
+  //ENSURE THESE ARE ONLY USED VIA PORT MANIPULATION    !!!
+  //IF THESE PINS AREN'T THE SAME YOU'RE SHORTING THEM  !!!
+  //ROS Node Handle Initialization
+
   nh.initNode();
   nh.subscribe(sub);
-  
-  digitalWrite(LED_BUILTIN, LOW);
 }
 
-
-void loop(){  //keep ros alive
-  nh.spinOnce();
-  
-  if((getPSI() > (maxP + 5)) || (getPSI() < (minP - 5))){  //safety against any strange over pressure event
-    isError(3);
+void loop() {
+  //curr_psi = getPSI();
+  switch (state) {
+    case GRIP_NEUTRAL:
+      relaxGrip();
+      nh.logdebug("State: GRIP_NEUTRAL");
+      break;
+    case GRIP_CLOSE:
+      relaxGrip();
+      closeGrip();
+      nh.logdebug("State: GRIP_CLOSE");
+      break;
+    case GRIP_OPEN:
+      nh.logdebug("State: GRIP_OPEN_Start");
+      relaxGrip();
+      openGrip();
+      nh.logdebug("State: GRIP_OPEN");
+      break;
+    case FLIP_OFF:
+      relayOff();
+      nh.logdebug("State: FLIP_OFF");
+      break;
+    case FLIP_ON:
+      relayOn();
+      nh.logdebug("State: FLIP_ON");
+      break;
   }
-  
-  delay(100);
+  nh.spinOnce();
 }

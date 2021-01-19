@@ -51,13 +51,13 @@ byte getPSI () {
 //======================================================================================================
 
 void relaxGrip() {
-  #digitalWrite(OUT_A, HIGH);
-  #digitalWrite(OUT_B, HIGH);
-  #digitalWrite(OUT_C, LOW);
+  // digitalWrite(OUT_A, HIGH);
+  // digitalWrite(OUT_B, HIGH);
+  // digitalWrite(OUT_C, LOW);
   PORTD = OUT_A | OUT_B;
   delay(2000);
-  #digitalWrite(OUT_A, LOW);
-  #digitalWrite(OUT_B, LOW);
+  // digitalWrite(OUT_A, LOW);
+  // digitalWrite(OUT_B, LOW);
   PORTD = B00000000;
 }
 
@@ -66,12 +66,12 @@ void closeGrip() {
     /*int i = 0;
       while(i < 30) {  //debug purposes only
       i++;*/
-    #digitalWrite(OUT_B, HIGH);
-    #digitalWrite(OUT_C, HIGH);
+    // digitalWrite(OUT_B, HIGH);
+    // digitalWrite(OUT_C, HIGH);
     PORTD = OUT_B | OUT_C;
   }
-  #digitalWrite(OUT_B, LOW);
-  #digitalWrite(OUT_C, LOW);
+  // digitalWrite(OUT_B, LOW);
+  // digitalWrite(OUT_C, LOW);
   PORTD = B00000000;
 }
 
@@ -80,8 +80,8 @@ void openGrip() {
     /*int j = 0;
       while(j < 30){  //debug purposes only
       j++;*/
-    #digitalWrite(OUT_A, HIGH);
-    #digitalWrite(OUT_C, HIGH);
+    // digitalWrite(OUT_A, HIGH);
+    // digitalWrite(OUT_C, HIGH);
     PORTD = OUT_A | OUT_C;
   }
 }
